@@ -213,11 +213,14 @@ export function toTypeDeclarationFile(imports: Import[], options?: TypeDeclarati
 
 export function toTypeReExports(imports: Import[], options?: TypeDeclarationOptions) {
   const importsMap = new Map<string, Import[]>()
-  imports.forEach((i) => {
-    const from = options?.resolvePath?.(i) || stripFileExtension(i.typeFrom || i.from)
-    const list = importsMap.get(from) || []
-    list.push(i)
-    importsMap.set(from, list)
+  imports.forEach((import_) => {
+    const from = options?.resolvePath?.(import_) || stripFileExtension(import_.typeFrom || import_.from)
+    let list = importsMap.get(from)
+    if (!list) {
+      list = []
+      importsMap.set(from, list)
+    }
+    list.push(import_)
   })
 
   const code = Array.from(importsMap.entries()).flatMap(([from, imports]) => {
