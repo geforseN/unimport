@@ -1,5 +1,5 @@
 import type { StaticImport } from 'mlly'
-import type { Import, InlinePreset, MagicStringResult, TypeDeclarationOptions } from './types'
+import type { Import, InlinePreset, MagicStringResult, PathFromResolver, TypeDeclarationOptions } from './types'
 import MagicString from 'magic-string'
 import { findStaticImports, parseStaticImport, resolvePath } from 'mlly'
 import { isAbsolute, relative } from 'pathe'
@@ -213,14 +213,19 @@ export function toTypeDeclarationFile(imports: Import[], options?: TypeDeclarati
 
 export function toTypeReExports(imports: Import[], options?: TypeDeclarationOptions) {
   const importsMap = new Map<string, Import[]>()
-  imports.forEach((import_) => {
-    const from = options?.resolvePath?.(import_) || stripFileExtension(import_.typeFrom || import_.from)
+  const resolveImportFrom = typeof options?.resolvePath === 'function'
+    ? (i: Import) => {
+        return options.resolvePath!(i) || stripFileExtension(i.typeFrom || i.from)
+      }
+    : (i: Import) => stripFileExtension(i.typeFrom || i.from)
+  imports.forEach((i) => {
+    const from = resolveImportFrom(i)
     let list = importsMap.get(from)
     if (!list) {
       list = []
       importsMap.set(from, list)
     }
-    list.push(import_)
+    list.push(i)
   })
 
   const code = Array.from(importsMap.entries()).flatMap(([from, imports]) => {
