@@ -211,11 +211,11 @@ export function toTypeDeclarationFile(imports: Import[], options?: TypeDeclarati
   return declaration
 }
 
-export function toTypeReExports(imports: Import[], options?: TypeDeclarationOptions) {
+function makeImportsMap(imports: Import[], resolvePath?: PathFromResolver) {
   const importsMap = new Map<string, Import[]>()
-  const resolveImportFrom = typeof options?.resolvePath === 'function'
+  const resolveImportFrom = typeof resolvePath === 'function'
     ? (i: Import) => {
-        return options.resolvePath!(i) || stripFileExtension(i.typeFrom || i.from)
+        return resolvePath(i) || stripFileExtension(i.typeFrom || i.from)
       }
     : (i: Import) => stripFileExtension(i.typeFrom || i.from)
   imports.forEach((i) => {
@@ -227,7 +227,11 @@ export function toTypeReExports(imports: Import[], options?: TypeDeclarationOpti
     }
     list.push(i)
   })
+  return importsMap
+}
 
+export function toTypeReExports(imports: Import[], options?: TypeDeclarationOptions) {
+  const importsMap = makeImportsMap(imports, options?.resolvePath)
   const code = Array.from(importsMap.entries()).flatMap(([from, imports]) => {
     const strings = [
       // If a module is only been re-exported as type, TypeScript will not initialize it for some reason.
