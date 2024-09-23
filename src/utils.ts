@@ -269,7 +269,8 @@ export function toTypeReExports(imports: Import[], options?: TypeDeclarationOpti
         `export type { ${typeImports.join(', ')} } from '${from}'`,
       )
     }
-    return strings
+    // length === 1 is one when provided imports are invalid
+    return strings.length === 1 ? [] : strings
   })
   return makeTypeReExportsString(code)
 }
