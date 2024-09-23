@@ -230,6 +230,10 @@ function makeImportsMap(imports: Import[], resolvePath?: PathFromResolver) {
   return importsMap
 }
 
+function makeTypeReExportsString(code: string[]) {
+  return `// for type re-export\ndeclare global {\n${code.map(i => `  ${i}`).join('\n')}\n}`
+}
+
 export function toTypeReExports(imports: Import[], options?: TypeDeclarationOptions) {
   const importsMap = makeImportsMap(imports, options?.resolvePath)
   const code = Array.from(importsMap.entries()).flatMap(([from, imports]) => {
@@ -267,7 +271,7 @@ export function toTypeReExports(imports: Import[], options?: TypeDeclarationOpti
     }
     return strings
   })
-  return `// for type re-export\ndeclare global {\n${code.map(i => `  ${i}`).join('\n')}\n}`
+  return makeTypeReExportsString(code)
 }
 
 function stringifyImportAlias(item: Import, isCJS = false) {
