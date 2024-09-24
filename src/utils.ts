@@ -244,13 +244,14 @@ export function toTypeReExports(imports: Import[], options?: TypeDeclarationOpti
     // We use @ts-ignore to suppress the error since it actually works.
     const strings: string[] = []
     if (typeImports.size) {
+      const typeImportNames = Array.from(typeImports).map(({ name, as }) => {
+        if (as && as !== name)
+          return `${name} as ${as}`
+        return name
+      })
       strings.push(
         '// @ts-ignore',
-        `export type { ${Array.from(typeImports).map(({ name, as }) => {
-          if (as && as !== name)
-            return `${name} as ${as}`
-          return name
-        }).join(', ')} } from '${from}'`,
+        `export type { ${typeImportNames.join(', ')} } from '${from}'`,
       )
     }
     if (starTypeImport) {
