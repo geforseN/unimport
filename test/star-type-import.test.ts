@@ -17,14 +17,66 @@ import { toTypeReExports } from '../src'
 // ` is valid
 
 describe('star type import', () => {
-  it.todo('would not be added if there is no "as" property', () => {
+  it('would not be added if there is no "as" property', () => {
     const invalidImport = {
       from: 'foo-lib',
       name: '*',
       type: true,
     }
-    const res = toTypeReExports([invalidImport])
-    expect(res.length).toBe(0)
+    const typeReExports = toTypeReExports([invalidImport])
+    expect(typeReExports).toMatchInlineSnapshot(`
+      "// for type re-export
+      declare global {
+
+      }"
+    `)
   })
-  it.todo('with other type imports will not be on same line')
+
+  it('would not be added if there is multiple invalid imports', () => {
+    const invalidImports = [
+      {
+        from: 'foo-lib',
+        name: '*',
+        type: true,
+      },
+      {
+        from: 'foo-lib',
+        name: '*',
+        type: true,
+        as: '',
+      },
+    ]
+    const typeReExports = toTypeReExports(invalidImports)
+    expect(typeReExports).toMatchInlineSnapshot(`
+      "// for type re-export
+      declare global {
+
+      }"
+    `)
+  })
+  it('with other type imports will not be on same line', () => {
+    const typeReExports = toTypeReExports([
+      {
+        from: 'foo-lib',
+        name: '*',
+        type: true,
+        as: 'bar',
+      },
+      {
+        from: 'foo-lib',
+        name: 'baz',
+        type: true,
+      },
+    ])
+    expect(typeReExports).toMatchInlineSnapshot(`
+      "// for type re-export
+      declare global {
+        // @ts-ignore
+        export type { baz } from 'foo-lib'
+        // @ts-ignore
+        export type * as bar from 'foo-lib'
+        import('foo-lib')
+      }"
+    `)
+  })
 })
