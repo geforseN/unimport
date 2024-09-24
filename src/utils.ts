@@ -248,8 +248,8 @@ export function toTypeReExports(imports: Import[], options?: TypeDeclarationOpti
     const starImportIndex = imports.findIndex(i => i.name === '*')
     if (starImportIndex !== -1) {
       const star = imports[starImportIndex]
+      imports = imports.toSpliced(starImportIndex, 1)
       if (star.as) {
-        imports = imports.toSpliced(starImportIndex, 1)
         strings.unshift(
           '// @ts-ignore',
           `export type * as ${star.as} from '${from}'`,
