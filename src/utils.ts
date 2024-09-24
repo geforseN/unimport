@@ -211,68 +211,65 @@ export function toTypeDeclarationFile(imports: Import[], options?: TypeDeclarati
   return declaration
 }
 
-function makeImportsMap(imports: Import[], resolvePath?: PathFromResolver) {
-  const importsMap = new Map<string, Import[]>()
+function makeTypeModulesMap(imports: Import[], resolvePath?: PathFromResolver) {
+  const modulesMap = new Map<string, { starTypeImport: Import | undefined, typeImports: Set<Import> }>()
   const resolveImportFrom = typeof resolvePath === 'function'
     ? (i: Import) => {
         return resolvePath(i) || stripFileExtension(i.typeFrom || i.from)
       }
     : (i: Import) => stripFileExtension(i.typeFrom || i.from)
-  imports.forEach((i) => {
-    const from = resolveImportFrom(i)
-    let list = importsMap.get(from)
-    if (!list) {
-      list = []
-      importsMap.set(from, list)
+  for (const import_ of imports) {
+    const from = resolveImportFrom(import_)
+    let module = modulesMap.get(from)
+    if (!module) {
+      module = { typeImports: new Set(), starTypeImport: undefined }
+      modulesMap.set(from, module)
     }
-    list.push(i)
-  })
-  return importsMap
-}
-
-function makeTypeReExportsString(code: string[]) {
-  return `// for type re-export\ndeclare global {\n${code.map(i => `  ${i}`).join('\n')}\n}`
+    if (import_.name === '*') {
+      if (import_.as)
+        module.starTypeImport = import_
+    }
+    else {
+      module.typeImports.add(import_)
+    }
+  }
+  return modulesMap
 }
 
 export function toTypeReExports(imports: Import[], options?: TypeDeclarationOptions) {
-  const importsMap = makeImportsMap(imports, options?.resolvePath)
-  const code = Array.from(importsMap.entries()).flatMap(([from, imports]) => {
-    const strings = [
-      // If a module is only been re-exported as type, TypeScript will not initialize it for some reason.
-      // Adding an import statement will fix it.
-      `import('${from}')`,
-      // We need to prepend @ts-ignore before export string insert to prevent the error
-      // Because of TypeScript's limitation, it errors when re-exporting type in declare.
-      // But it actually works so we use @ts-ignore to dismiss the error.
-    ]
-    const starImportIndex = imports.findIndex(i => i.name === '*')
-    if (starImportIndex !== -1) {
-      const star = imports[starImportIndex]
-      imports = imports.toSpliced(starImportIndex, 1)
-      if (star.as) {
-        strings.unshift(
-          '// @ts-ignore',
-          `export type * as ${star.as} from '${from}'`,
-        )
-        if (!imports.length)
-          return strings
-      }
-    }
-    const typeImports = imports.map(({ name, as }) => {
-      if (as && as !== name)
-        name += ` as ${as}`
-      return name
-    })
-    if (typeImports.length) {
-      strings.unshift(
+  const importsMap = makeTypeModulesMap(imports, options?.resolvePath)
+  const code = Array.from(importsMap).flatMap(([from, module]) => {
+    const { starTypeImport, typeImports } = module
+    // We need to prepend @ts-ignore before export string insert to prevent the error
+    // Because of TypeScript's limitation, it errors when re-exporting type in declare.
+    // But it actually works so we use @ts-ignore to dismiss the error.
+    const strings: string[] = []
+    if (typeImports.size) {
+      strings.push(
         '// @ts-ignore',
-        `export type { ${typeImports.join(', ')} } from '${from}'`,
+        `export type { ${Array.from(typeImports).map(({ name, as }) => {
+          if (as && as !== name)
+            return `${name} as ${as}`
+          return name
+        }).join(', ')} } from '${from}'`,
       )
     }
-    // length === 1 is one when provided imports are invalid
-    return strings.length === 1 ? [] : strings
+    if (starTypeImport) {
+      strings.push(
+        '// @ts-ignore',
+        `export type * as ${starTypeImport.as} from '${from}'`,
+      )
+    }
+    if (strings.length) {
+      strings.push(
+        // If a module is only been re-exported as type, TypeScript will not initialize it for some reason.
+        // Adding an import statement will fix it.
+        `import('${from}')`,
+      )
+    }
+    return strings
   })
-  return makeTypeReExportsString(code)
+  return `// for type re-export\ndeclare global {\n${code.map(i => `  ${i}`).join('\n')}\n}`
 }
 
 function stringifyImportAlias(item: Import, isCJS = false) {
